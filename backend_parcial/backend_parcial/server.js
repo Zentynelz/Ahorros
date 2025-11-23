@@ -44,6 +44,10 @@ app.use('/api/payments', paymentsRouter);
 const PORT = process.env.PORT || 3000;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/plan_ahorro';
 
+app.get("/", (req, res) => {
+  res.send("API Plan Familiar de Ahorro funcionando ✅");
+});
+
 mongoose.connect(MONGO_URI)
   .then(()=> {
     console.log('Connected to MongoDB');
