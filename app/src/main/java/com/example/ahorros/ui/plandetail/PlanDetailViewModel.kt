@@ -1,200 +1,144 @@
 package com.example.ahorros.ui.plandetail
 
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import java.util.UUID
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.Date
 import androidx.lifecycle.viewModelScope
-import com.example.ahorros.data.model.CreateMemberRequest
 import com.example.ahorros.data.model.Member
 import com.example.ahorros.data.model.Payment
 import com.example.ahorros.data.model.Plan
-import com.example.ahorros.data.repository.MembersRepository
-import com.example.ahorros.data.repository.PaymentsRepository
-import com.example.ahorros.data.repository.PlansRepository
+import com.example.ahorros.data.model.CreateMemberRequest
+import com.example.ahorros.data.repository.MembersRepositoryImpl
+import com.example.ahorros.data.repository.PaymentsRepositoryImpl
+import com.example.ahorros.data.repository.PlansRepositoryImpl
 import com.example.ahorros.util.Resource
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-/**
- * Estado de la UI para el detalle del plan.
- * Incluye información del plan, miembros, pagos y cálculos de progreso.
- */
+//  UI STATE
 data class PlanDetailUiState(
-    val isLoading: Boolean = false,
     val plan: Plan? = null,
     val members: List<Member> = emptyList(),
     val payments: List<Payment> = emptyList(),
-    val totalCollected: Long = 0,
-    val progressPercentage: Float = 0f,
-    val error: String? = null,
-    val memberCreationSuccess: Boolean = false,
-    val memberCreationError: String? = null
-)
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null,
+    val memberCreationError: String? = null,      // <-- nuevo
+    val memberCreationSuccess: Boolean = false     // <-- nuevo
+) {
+    val totalCollected: Long
+        get() = payments.sumOf { it.amount ?: 0L }
 
-/**
- * ViewModel para la pantalla de detalle del plan.
- * Gestiona la lógica de negocio y cálculos de progreso del plan.
- */
+    val progressPercentage: Int
+        get() = if (plan?.targetAmount != null && plan.targetAmount > 0) {
+            ((totalCollected.toDouble() / plan.targetAmount) * 100).toInt().coerceIn(0, 100)
+        } else 0
+}
+
+
+
 class PlanDetailViewModel(
-    private val plansRepository: PlansRepository,
-    private val membersRepository: MembersRepository,
-    private val paymentsRepository: PaymentsRepository
+    private val planId: String,
+    private val plansRepository: PlansRepositoryImpl,
+    private val membersRepository: MembersRepositoryImpl,
+    private val paymentsRepository: PaymentsRepositoryImpl
 ) : ViewModel() {
 
-    private val _uiState = MutableLiveData(PlanDetailUiState())
-    val uiState: LiveData<PlanDetailUiState> = _uiState
+    private val _uiState = MutableStateFlow(PlanDetailUiState())
+    val uiState: StateFlow<PlanDetailUiState> = _uiState
 
-    /**
-     * Carga todos los datos del plan: información básica, miembros y pagos.
-     * Calcula el progreso automáticamente.
-     */
-    fun loadPlanDetails(planId: String) {
-        _uiState.value = _uiState.value?.copy(isLoading = true, error = null)
-        
+    init {
+        loadAllData()
+    }
+
+    fun loadAllData() {
         viewModelScope.launch {
-            // Cargar plan
-            when (val planResult = plansRepository.getPlanById(planId)) {
-                is Resource.Success -> {
-                    val plan = planResult.data
-                    _uiState.value = _uiState.value?.copy(plan = plan)
-                    
-                    // Cargar miembros
-                    loadMembers(planId)
-                    
-                    // Cargar pagos
-                    loadPayments(planId)
-                }
-                is Resource.Error -> {
-                    _uiState.value = PlanDetailUiState(
-                        isLoading = false,
-                        error = planResult.message
-                    )
-                }
-                is Resource.Loading -> {
-                    // Ya está en loading
-                }
-            }
+            _uiState.value = _uiState.value.copy(isLoading = true)
+
+            loadPlan()
+            loadMembers()
+            loadPayments()
+
+            _uiState.value = _uiState.value.copy(isLoading = false)
         }
     }
 
-    /**
-     * Carga los miembros del plan.
-     */
-    private suspend fun loadMembers(planId: String) {
-        when (val membersResult = membersRepository.getMembersByPlan(planId)) {
-            is Resource.Success -> {
-                _uiState.value = _uiState.value?.copy(members = membersResult.data)
-            }
-            is Resource.Error -> {
-                // No bloqueamos la UI si falla la carga de miembros
-                _uiState.value = _uiState.value?.copy(members = emptyList())
-            }
-            is Resource.Loading -> {}
+    private suspend fun loadPlan() {
+        when (val result = plansRepository.getPlanById(planId)) {
+            is Resource.Success -> _uiState.value =
+                _uiState.value.copy(plan = result.data)
+            is Resource.Error -> _uiState.value =
+                _uiState.value.copy(errorMessage = result.message)
+            else -> {}
         }
     }
 
-    /**
-     * Carga los pagos del plan y calcula el progreso.
-     */
-    private suspend fun loadPayments(planId: String) {
-        when (val paymentsResult = paymentsRepository.getPaymentsByPlan(planId)) {
-            is Resource.Success -> {
-                val payments = paymentsResult.data
-                val totalCollected = calculateTotalCollected(payments)
-                val progressPercentage = calculateProgress(totalCollected)
-                
-                _uiState.value = _uiState.value?.copy(
-                    isLoading = false,
-                    payments = payments,
-                    totalCollected = totalCollected,
-                    progressPercentage = progressPercentage
-                )
-            }
-            is Resource.Error -> {
-                _uiState.value = _uiState.value?.copy(
-                    isLoading = false,
-                    payments = emptyList(),
-                    totalCollected = 0,
-                    progressPercentage = 0f
-                )
-            }
-            is Resource.Loading -> {}
+    private suspend fun loadMembers() {
+        when (val result = membersRepository.getMembersByPlan(planId)) {
+            is Resource.Success -> _uiState.value =
+                _uiState.value.copy(members = result.data ?: emptyList())
+            is Resource.Error -> _uiState.value =
+                _uiState.value.copy(errorMessage = result.message)
+            else -> {}
         }
     }
 
-    /**
-     * Calcula el total recaudado sumando todos los pagos.
-     */
-    private fun calculateTotalCollected(payments: List<Payment>): Long {
-        return payments.sumOf { it.amount }
+    private suspend fun loadPayments() {
+        when (val result = paymentsRepository.getPaymentsByPlan(planId)) {
+            is Resource.Success -> _uiState.value =
+                _uiState.value.copy(payments = result.data ?: emptyList())
+            is Resource.Error -> _uiState.value =
+                _uiState.value.copy(errorMessage = result.message)
+            else -> {}
+        }
+    }
+    fun clearMemberCreationState() {
+        _uiState.value = _uiState.value.copy(
+            memberCreationError = null,
+            memberCreationSuccess = false
+        )
     }
 
-    /**
-     * Calcula el porcentaje de progreso del plan.
-     * Retorna un valor entre 0 y 100.
-     */
-    private fun calculateProgress(totalCollected: Long): Float {
-        val plan = _uiState.value?.plan ?: return 0f
-        if (plan.targetAmount == 0L) return 0f
-        
-        val percentage = (totalCollected.toFloat() / plan.targetAmount.toFloat()) * 100f
-        return percentage.coerceIn(0f, 100f)
-    }
-
-    /**
-     * Crea un nuevo miembro para el plan.
-     */
-    fun createMember(name: String, contributionPerMonth: Long) {
-        val planId = _uiState.value?.plan?.id ?: return
-        
-        // Validaciones
-        if (name.isBlank()) {
-            _uiState.value = _uiState.value?.copy(
-                memberCreationError = "El nombre no puede estar vacío"
-            )
-            return
-        }
-        
-        if (contributionPerMonth <= 0) {
-            _uiState.value = _uiState.value?.copy(
-                memberCreationError = "La contribución debe ser mayor a 0"
-            )
-            return
-        }
-        
+    fun createMember(name: String, contribution: Long) {
         viewModelScope.launch {
+            if (name.isBlank() || contribution <= 0) {
+                _uiState.value = _uiState.value.copy(memberCreationError = "Nombre o contribución inválida")
+                return@launch
+            }
+
+            // Crear el request para el repositorio
             val request = CreateMemberRequest(
                 name = name,
-                planId = planId,
-                contributionPerMonth = contributionPerMonth
+                contributionPerMonth = contribution,
+                planId = planId
             )
-            
+
+            // Llamar al repositorio
             when (val result = membersRepository.createMember(request)) {
                 is Resource.Success -> {
-                    _uiState.value = _uiState.value?.copy(
+                    val newMember = result.data ?: return@launch
+
+                    // Asegurarse de que la lista no tenga nulls
+                    val currentMembers = _uiState.value.members.filterNotNull()
+
+                    _uiState.value = _uiState.value.copy(
                         memberCreationSuccess = true,
-                        memberCreationError = null
+                        members = currentMembers + newMember
                     )
-                    // Recargar miembros
-                    loadMembers(planId)
                 }
                 is Resource.Error -> {
-                    _uiState.value = _uiState.value?.copy(
-                        memberCreationSuccess = false,
-                        memberCreationError = result.message
-                    )
+                    _uiState.value = _uiState.value.copy(memberCreationError = result.message)
                 }
-                is Resource.Loading -> {}
+                else -> {}
             }
         }
     }
 
-    /**
-     * Limpia los estados de creación de miembro.
-     */
-    fun clearMemberCreationState() {
-        _uiState.value = _uiState.value?.copy(
-            memberCreationSuccess = false,
-            memberCreationError = null
-        )
+
+
+    fun clearError() {
+        _uiState.value = _uiState.value.copy(errorMessage = null)
     }
 }

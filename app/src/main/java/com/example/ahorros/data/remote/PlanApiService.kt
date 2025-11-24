@@ -3,6 +3,7 @@ package com.example.ahorros.data.remote
 import com.example.ahorros.data.model.CreateMemberRequest
 import com.example.ahorros.data.model.Member
 import com.example.ahorros.data.model.Payment
+import com.example.ahorros.data.model.CreatePlanRequest
 import com.example.ahorros.data.model.Plan
 import retrofit2.Response
 import retrofit2.http.Body
@@ -11,12 +12,20 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 
 interface PlanApiService {
+    companion object {
+        fun create(): PlanApiService {
+            return RetrofitClient.api
+        }
+    }
+
     // Plans
     @GET("plans")
     suspend fun getPlans(): Response<List<Plan>>
     
     @GET("plans/{id}")
     suspend fun getPlanById(@Path("id") planId: String): Response<Plan>
+    @POST("plans")
+    suspend fun createPlan(@Body request: CreatePlanRequest): Response<Plan>
     
     // Members
     @GET("members/plan/{planId}")
@@ -24,8 +33,10 @@ interface PlanApiService {
     
     @POST("members")
     suspend fun createMember(@Body request: CreateMemberRequest): Response<Member>
-    
     // Payments
     @GET("payments/plan/{planId}")
     suspend fun getPaymentsByPlan(@Path("planId") planId: String): Response<List<Payment>>
+
+    @POST("payments")
+    suspend fun createPayment(@Body payment: Payment): Response<Payment>
 }

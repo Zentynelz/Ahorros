@@ -33,7 +33,7 @@ class PlansViewModel(
                 is Resource.Success -> {
                     _uiState.value = PlansUiState(
                         isLoading = false,
-                        plans = result.data,
+                        plans = result.data.orEmpty(),
                         error = null
                     )
                 }

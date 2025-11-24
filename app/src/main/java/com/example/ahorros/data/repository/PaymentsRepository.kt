@@ -8,4 +8,6 @@ import com.example.ahorros.util.Resource
  */
 interface PaymentsRepository {
     suspend fun getPaymentsByPlan(planId: String): Resource<List<Payment>>
+    suspend fun createPayment(payment: Payment): Resource<Payment>
+
 }

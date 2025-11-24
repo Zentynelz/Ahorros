@@ -13,19 +13,19 @@ import androidx.compose.material3.Surface
  */
 class PlanDetailActivity : ComponentActivity() {
 
-    private val viewModel: PlanDetailViewModel by viewModels { PlanDetailViewModelFactory() }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         val planId = intent.getStringExtra(EXTRA_PLAN_ID)
         if (planId == null) {
             finish()
             return
         }
-        
-        viewModel.loadPlanDetails(planId)
-        
+
+        val viewModel: PlanDetailViewModel by viewModels {
+            PlanDetailViewModelFactory(planId)
+        }
+
         setContent {
             MaterialTheme {
                 Surface {

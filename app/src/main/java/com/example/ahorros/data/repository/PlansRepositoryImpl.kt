@@ -1,6 +1,7 @@
 package com.example.ahorros.data.repository
 
 import com.example.ahorros.data.model.Plan
+import com.example.ahorros.data.model.CreatePlanRequest
 import com.example.ahorros.data.remote.PlanApiService
 import com.example.ahorros.util.Resource
 import retrofit2.HttpException
@@ -46,6 +47,29 @@ class PlansRepositoryImpl(
             } else {
                 Resource.Error("Error ${response.code()}: ${response.message()}")
             }
+        } catch (e: HttpException) {
+            Resource.Error("Error de servidor: ${e.message()}")
+        } catch (e: IOException) {
+            Resource.Error("Error de conexión. Verifica tu red")
+        } catch (e: Exception) {
+            Resource.Error("Error inesperado: ${e.localizedMessage}")
+        }
+    }
+    override suspend fun createPlan(newPlan: CreatePlanRequest): Resource<Plan> {
+        return try {
+            val response = apiService.createPlan(newPlan)
+
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null) {
+                    Resource.Success(body)
+                } else {
+                    Resource.Error("Respuesta vacía del servidor")
+                }
+            } else {
+                Resource.Error("Error ${response.code()}: ${response.message()}")
+            }
+
         } catch (e: HttpException) {
             Resource.Error("Error de servidor: ${e.message()}")
         } catch (e: IOException) {

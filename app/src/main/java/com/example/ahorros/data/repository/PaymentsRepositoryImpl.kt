@@ -14,6 +14,21 @@ class PaymentsRepositoryImpl(
     private val apiService: PlanApiService
 ) : PaymentsRepository {
 
+    override suspend fun createPayment(payment: Payment): Resource<Payment> {
+        return try {
+            val response = apiService.createPayment(payment)
+            if (response.isSuccessful) {
+                response.body()?.let {
+                    Resource.Success(it)
+                } ?: Resource.Error("Respuesta vacía")
+            } else {
+                Resource.Error("Error ${response.code()}: ${response.message()}")
+            }
+        } catch (e: Exception) {
+            Resource.Error("Error inesperado: ${e.localizedMessage}")
+        }
+    }
+
     override suspend fun getPaymentsByPlan(planId: String): Resource<List<Payment>> {
         return try {
             val response = apiService.getPaymentsByPlan(planId)

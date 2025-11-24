@@ -33,10 +33,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -55,7 +55,7 @@ fun PlanDetailScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val uiState by viewModel.uiState.observeAsState(PlanDetailUiState(isLoading = true))
+    val uiState by viewModel.uiState.collectAsState()
     var showAddMemberDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -77,6 +77,7 @@ fun PlanDetailScreen(
             }
         }
     ) { paddingValues ->
+
         when {
             uiState.isLoading -> {
                 Column(
@@ -91,7 +92,7 @@ fun PlanDetailScreen(
                 }
             }
 
-            uiState.error != null -> {
+            uiState.errorMessage != null -> {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -100,9 +101,9 @@ fun PlanDetailScreen(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(text = uiState.error ?: "Error desconocido")
+                    Text(text = uiState.errorMessage ?: "Error desconocido")
                     Button(
-                        onClick = { uiState.plan?.id?.let { viewModel.loadPlanDetails(it) } },
+                        onClick = { viewModel.loadAllData() },
                         modifier = Modifier.padding(top = 12.dp)
                     ) {
                         Text(text = "Reintentar")
@@ -159,21 +160,21 @@ fun PlanDetailContent(
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                    
+
                     InfoRow(label = "Motivo", value = plan.motive ?: "Sin motivo")
                     InfoRow(label = "Meta", value = currencyFormat.format(plan.targetAmount))
                     InfoRow(label = "Meses", value = "${plan.months} meses")
                     InfoRow(label = "Recaudado", value = currencyFormat.format(uiState.totalCollected))
-                    
+
                     Spacer(modifier = Modifier.height(12.dp))
-                    
+
                     Text(
                         text = "Progreso: ${String.format("%.1f", uiState.progressPercentage)}%",
                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     LinearProgressIndicator(
-                        progress = { uiState.progressPercentage / 100f },
+                        progress = uiState.progressPercentage / 100f,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -250,7 +251,7 @@ fun InfoRow(label: String, value: String) {
 @Composable
 fun MemberItem(member: Member) {
     val currencyFormat = NumberFormat.getCurrencyInstance(Locale("es", "CO"))
-    
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -273,7 +274,7 @@ fun MemberItem(member: Member) {
 fun PaymentItem(payment: Payment, members: List<Member>) {
     val currencyFormat = NumberFormat.getCurrencyInstance(Locale("es", "CO"))
     val memberName = members.find { it.id == payment.memberId }?.name ?: "Desconocido"
-    
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -332,9 +333,9 @@ fun AddMemberDialog(
                     text = "Agregar Miembro",
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                 )
-                
+
                 Spacer(modifier = Modifier.height(16.dp))
-                
+
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -342,9 +343,9 @@ fun AddMemberDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
-                
+
                 Spacer(modifier = Modifier.height(12.dp))
-                
+
                 OutlinedTextField(
                     value = contribution,
                     onValueChange = { contribution = it },
@@ -353,7 +354,7 @@ fun AddMemberDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true
                 )
-                
+
                 if (error != null) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
@@ -362,9 +363,9 @@ fun AddMemberDialog(
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
-                
+
                 Spacer(modifier = Modifier.height(24.dp))
-                
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End

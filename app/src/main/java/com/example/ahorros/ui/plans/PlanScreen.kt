@@ -1,6 +1,7 @@
 package com.example.ahorros.ui.plans
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -30,6 +31,8 @@ import com.example.ahorros.data.model.Plan
 fun PlansScreen(
     viewModel: PlansViewModel,
     onPlanClick: (Plan) -> Unit,
+    onCreatePlanClick: () -> Unit,
+    onAddPaymentClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.observeAsState(PlansUiState(isLoading = true))
@@ -64,7 +67,26 @@ fun PlansScreen(
             }
 
             else -> {
-                PlansList(plans = uiState.plans, onPlanClick = onPlanClick)
+                Column(modifier = Modifier.fillMaxSize()) {
+                    PlansList(
+                        plans = uiState.plans,
+                        onPlanClick = onPlanClick,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        Button(onClick = onCreatePlanClick, modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Text(text = "Crear Plan")
+                        }
+                        Button(onClick = onAddPaymentClick, modifier = Modifier.weight(1f).padding(start = 8.dp)) {
+                            Text(text = "Registrar Pago")
+                        }
+                    }
+                }
             }
         }
     }

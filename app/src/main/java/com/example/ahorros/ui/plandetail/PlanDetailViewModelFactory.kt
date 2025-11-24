@@ -8,19 +8,30 @@ import com.example.ahorros.data.repository.PaymentsRepositoryImpl
 import com.example.ahorros.data.repository.PlansRepositoryImpl
 
 /**
- * Factory para crear instancias de PlanDetailViewModel con sus dependencias.
+ * Factory que permite crear el ViewModel recibiendo planId.
  */
-class PlanDetailViewModelFactory : ViewModelProvider.Factory {
+class PlanDetailViewModelFactory(
+    private val planId: String
+) : ViewModelProvider.Factory {
+
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(PlanDetailViewModel::class.java)) {
+
             val api = RetrofitClient.api
+
             val plansRepository = PlansRepositoryImpl(api)
             val membersRepository = MembersRepositoryImpl(api)
             val paymentsRepository = PaymentsRepositoryImpl(api)
-            
+
             @Suppress("UNCHECKED_CAST")
-            return PlanDetailViewModel(plansRepository, membersRepository, paymentsRepository) as T
+            return PlanDetailViewModel(
+                planId = planId,
+                plansRepository = plansRepository,
+                membersRepository = membersRepository,
+                paymentsRepository = paymentsRepository
+            ) as T
         }
+
         throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
